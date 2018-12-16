@@ -129,7 +129,7 @@
     "fortiGateIP1": {
       "type": "string",
       "metadata": {
-        "description": "Static IP from subnet 1 for port1 of the FortiGate virtual appliance.  Remember Azure reserves the first 3 IPs in each subnet.  When using an exising vnet, verify that this address is not already assigned, example: 10.2.1.4"
+        "description": "Static IP from subnet 1 for port1 of the FortiGate virtual appliance.  Remember Azure reserves the first 3 IPs in each subnet.  When using an existing vnet, verify that this address is not already assigned, example: 10.2.1.4"
       }
     },
     "Subnet2Name": {
@@ -149,7 +149,27 @@
     "fortiGateIP2": {
       "type": "string",
       "metadata": {
-        "description": "Static IP from subnet 2 for port1 of the FortiGate virtual appliance.  Remember Azure reserves the first 3 IPs in each subnet.  When using an exising vnet, verify that this address is not already assigned, example: 10.2.2.4"
+        "description": "Static IP from subnet 2 for port2 of the FortiGate virtual appliance.  Remember Azure reserves the first 3 IPs in each subnet.  When using an existing vnet, verify that this address is not already assigned, example: 10.2.2.4"
+      }
+    },
+	"Subnet3Name": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Subnet 3 Name"
+      }
+    },
+    "Subnet3Prefix": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Subnet 3 Prefix in CIDR notation (if using public IP, this will be the 'WAN' or external port), example: 10.2.2.0/24"
+      }
+    },
+    "fortiGateIP3": {
+      "type": "string",
+      "metadata": {
+        "description": "Static IP from subnet 3 for port3 of the FortiGate virtual appliance.  Remember Azure reserves the first 3 IPs in each subnet.  When using an existing vnet, verify that this address is not already assigned, example: 10.2.2.4"
       }
     },
     "FortinetTags": {
@@ -174,16 +194,20 @@
     "VNetName": "[parameters('vnetName')]",
     "Subnet1Name": "[parameters('Subnet1Name')]",
     "Subnet2Name": "[parameters('Subnet2Name')]",
+	"Subnet3Name": "[parameters('Subnet3Name')]",
     "vnetID": "[resourceId(parameters('vnetResourceGroup'),'Microsoft.Network/virtualNetworks', parameters('vnetName'))]",
     "subnet1Ref": "[concat(variables('vnetID'),'/subnets/', variables('Subnet1Name'))]",
     "subnet2Ref": "[concat(variables('vnetID'),'/subnets/', variables('Subnet2Name'))]",
+	"subnet3Ref": "[concat(variables('vnetID'),'/subnets/', variables('Subnet3Name'))]",
 
     "VNetAddressPrefix": "[parameters('vnetAddressPrefix')]",
     "Subnet1Prefix": "[parameters('Subnet1Prefix')]",
     "Subnet2Prefix": "[parameters('Subnet2Prefix')]",
+	"Subnet3Prefix": "[parameters('Subnet3Prefix')]",
 
     "routeTable1Name": "[concat(parameters('FortiGateName'), '-', parameters('Subnet1Name'),'-routes')]",
     "routeTable2Name": "[concat(parameters('FortiGateName'), '-', parameters('Subnet2Name'),'-routes')]",
+	"routeTable3Name": "[concat(parameters('FortiGateName'), '-', parameters('Subnet3Name'),'-routes')]",
 
     "FGDMZAddress": "[parameters('fortiGateIP2')]",
     "FGPubFacingAddress": "[parameters('fortiGateIP1')]",
@@ -195,6 +219,8 @@
     "network_NIC_fg11_Id": "[resourceId('Microsoft.Network/networkInterfaces',variables('network_NIC_fg11_Name'))]",
     "network_NIC_fg12_Name": "[concat(parameters('FortiGateName'),'Nic1')]",
     "network_NIC_fg12_Id": "[resourceId('Microsoft.Network/networkInterfaces',variables('network_NIC_fg12_Name'))]",
+	"network_NIC_fg13_Name": "[concat(parameters('FortiGateName'),'Nic2')]",
+    "network_NIC_fg13_Id": "[resourceId('Microsoft.Network/networkInterfaces',variables('network_NIC_fg13_Name'))]",
 
     "publicIPSetupURL": "[concat(parameters('artifactsBaseUrl'),'/','publicip-',parameters('publicIPNewOrExistingOrNone'),'.json')]",
     "virtualNetworkSetupURL": "[concat(parameters('artifactsBaseUrl'),'/','vnet-',parameters('vnetNewOrExisting'),'.json')]",
@@ -395,6 +421,33 @@
         "enableIPForwarding": true
       }
     },
+	{
+      "apiVersion": "[variables('apiVer')]",
+      "tags": {
+       "provider": "[toUpper(parameters('FortinetTags').provider)]"
+      },
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[variables('network_NIC_fg13_Name')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', 'SettingUpVirtualNetwork')]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig3",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "[variables('fortiGateIP3')]",
+              "subnet": {
+                "id": "[variables('subnet3Ref')]"
+              }
+            }
+          }
+        ],
+        "enableIPForwarding": true
+      }
+    },
     {
       "type": "Microsoft.Compute/virtualMachines",
       "name": "[variables('compute_VM_fg1_Name')]",
@@ -410,7 +463,8 @@
       },
       "dependsOn": [
         "[concat('Microsoft.Resources/deployments/', 'SettingUpPublicIPandFollowing')]",
-        "[concat('Microsoft.Network/networkInterfaces/',variables('network_NIC_fg12_Name'))]"
+        "[concat('Microsoft.Network/networkInterfaces/',variables('network_NIC_fg12_Name'))]",
+		"[concat('Microsoft.Network/networkInterfaces/',variables('network_NIC_fg13_Name'))]"
       ],
       "properties": {
         "hardwareProfile": {
@@ -455,6 +509,12 @@
                 "primary": false
               },
               "id": "[variables('network_NIC_fg12_Id')]"
+            },
+			{
+              "properties": {
+                "primary": false
+              },
+              "id": "[variables('network_NIC_fg13_Id')]"
             }
           ]
         }
